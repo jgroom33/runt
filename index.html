@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>How the DSD Runt Works — Dual-Chamber Air Spring</title>
+<link rel="icon" href="data:image/svg+xml,&lt;svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'&gt;&lt;rect width='16' height='16' rx='3' fill='%230e1217'/&gt;&lt;rect x='5' y='2' width='6' height='5' fill='%23e8743b'/&gt;&lt;rect x='5' y='7' width='6' height='7' fill='%233a8fe0'/&gt;&lt;/svg&gt;" />
+<style>
+  :root {
+    --bg0: #0e1217;
+    --panel: #1b232d;
+    --line: #2c3845;
+    --text: #e7eef5;
+    --muted: #8fa0b2;
+    --primaryAir: #3a8fe0;   /* low-pressure primary chamber */
+    --secondaryAir: #e8743b; /* high-pressure secondary chamber */
+    --float: #f2c14e;        /* floating piston */
+    --runt: #21c8b0;         /* Runt / "with Runt" curve / brand accent */
+    --stock: #8493a3;        /* "stock air spring" curve */
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: radial-gradient(1200px 700px at 30% -10%, #1c2530 0%, var(--bg0) 60%);
+    color: var(--text);
+    font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    display: flex; flex-direction: column; height: 100%; overflow: hidden;
+  }
+  header { padding: 14px 20px 10px; flex: 0 0 auto; }
+  header h1 { margin: 0; font-size: 18px; letter-spacing: .2px; }
+  header h1 span { color: var(--runt); }
+  header p { margin: 3px 0 0; color: var(--muted); font-size: 13px; max-width: 960px; }
+  header b.thr { color: var(--float); }
+
+  main { flex: 1 1 auto; display: flex; min-height: 0; padding: 6px 16px 0; gap: 14px; }
+  #sceneWrap { position: relative; flex: 1.45 1 0; min-width: 0; border: 1px solid var(--line);
+    border-radius: 12px; overflow: hidden;
+    background: radial-gradient(120% 90% at 50% 18%, #1a232d 0%, #0c1116 78%); }
+  #scene { position: absolute; inset: 0; display: block; }
+
+  .label {
+    position: absolute; transform: translate(-50%, -50%); pointer-events: none;
+    background: rgba(12,16,21,.82); border: 1px solid var(--line); color: var(--text);
+    padding: 3px 7px; border-radius: 6px; font-size: 11px; white-space: nowrap;
+    backdrop-filter: blur(2px); transition: opacity .2s; display: flex; align-items: center; gap: 6px;
+  }
+  .label .dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
+  .label .sub { color: var(--muted); }
+  .label.title { font-size: 12px; font-weight: 700; letter-spacing: .3px;
+    background: rgba(12,16,21,.9); padding: 4px 10px; }
+  .label.title.isrunt { color: var(--runt); border-color: rgba(33,200,176,.5);
+    box-shadow: 0 0 14px rgba(33,200,176,.25); }
+
+  /* The Runt callout bracket */
+  #runtBracket { position: absolute; pointer-events: none;
+    border: 2px solid var(--runt); border-left: none; border-radius: 0 10px 10px 0;
+    box-shadow: 0 0 18px rgba(33,200,176,.30), inset 0 0 18px rgba(33,200,176,.10);
+    animation: runtpulse 2.2s ease-in-out infinite; opacity: 0; transition: opacity .3s; }
+  #runtBracket .badge { position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+    background: var(--runt); color: #04231e; font-weight: 800; font-size: 11px; letter-spacing: .6px;
+    padding: 4px 9px; border-radius: 7px; white-space: nowrap;
+    box-shadow: 0 0 14px rgba(33,200,176,.55); }
+  #runtBracket .badge small { display: block; font-weight: 600; font-size: 9px; letter-spacing: .2px;
+    opacity: .85; margin-top: 1px; }
+  @keyframes runtpulse {
+    0%,100% { box-shadow: 0 0 14px rgba(33,200,176,.22), inset 0 0 14px rgba(33,200,176,.08); }
+    50%     { box-shadow: 0 0 26px rgba(33,200,176,.45), inset 0 0 20px rgba(33,200,176,.16); }
+  }
+  #sceneHint { position: absolute; left: 10px; bottom: 8px; color: var(--muted);
+    font-size: 11px; pointer-events: none; opacity: .8; }
+
+  #panel { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+  #graphWrap { position: relative; flex: 1 1 auto; border: 1px solid var(--line);
+    border-radius: 12px; background: var(--panel); padding: 6px; min-height: 0; }
+  #graph { position: absolute; inset: 6px; width: calc(100% - 12px); height: calc(100% - 12px); }
+
+  .readouts { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .stat { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
+  .stat .k { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .5px; }
+  .stat .v { font-size: 18px; font-variant-numeric: tabular-nums; margin-top: 2px; }
+  .stat .v small { font-size: 12px; color: var(--muted); }
+  #fpState.held { color: var(--muted); }
+  #fpState.engaged { color: var(--float); }
+  .stat.runtset { border-color: rgba(33,200,176,.4); }
+  .stat.runtset.reached { box-shadow: 0 0 0 1px var(--runt) inset; }
+
+  footer { flex: 0 0 auto; display: flex; align-items: center; gap: 14px; padding: 10px 20px 14px; }
+  button#play { background: var(--runt); color: #06231f; border: 0; border-radius: 8px;
+    font-weight: 600; padding: 8px 16px; cursor: pointer; font-size: 14px; min-width: 92px; }
+  button#play:hover { filter: brightness(1.08); }
+  .sliderRow { flex: 1 1 auto; display: flex; align-items: center; gap: 10px; }
+  .sliderRow label { color: var(--muted); font-size: 12px; white-space: nowrap; }
+  input[type=range] { flex: 1 1 auto; accent-color: var(--runt); }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; color: var(--muted); font-size: 12px; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend i { width: 22px; height: 0; border-top: 3px solid; display: inline-block; }
+  .swatch { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+  @media (max-width: 920px) { main { flex-direction: column; } #sceneWrap { flex: 1.1 1 0; } }
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+  <header>
+    <h1>The <span>Runt</span> — Diaz Suspension Design dual-chamber air spring</h1>
+    <p>Two fork air-spring cartridges under the <b>same applied load</b> — <b>left: stock</b> single chamber,
+       <b>right: with the Runt</b> installed (teal). At low load the Runt does <b>nothing</b> and both forks
+       compress to the same depth. Once the load drives the main pressure past the Runt's set pressure
+       (<b class="thr">~125&nbsp;psi</b>) its <b>floating piston</b> begins to move and the second chamber
+       engages — so for the <i>same load</i> the Runt sinks <b>deeper and more progressively</b> into its
+       travel (near-linear, coil-like), while the stock spring ramps up hard and rides high.</p>
+  </header>
+
+  <main>
+    <div id="sceneWrap">
+      <canvas id="scene"></canvas>
+      <div id="runtBracket"><div class="badge">THE RUNT<small>dual-chamber cartridge</small></div></div>
+      <div id="sceneHint">drag to scrub · pause, then drag to rotate / scroll to zoom</div>
+    </div>
+
+    <div id="panel">
+      <div id="graphWrap"><canvas id="graph"></canvas></div>
+      <div class="readouts">
+        <div class="stat"><div class="k">Applied load</div><div class="v"><span id="rLoad">65</span> <small>psi (force)</small></div></div>
+        <div class="stat"><div class="k">Floating piston</div><div class="v"><span id="fpState" class="held">HELD</span></div></div>
+        <div class="stat"><div class="k">Stock travel</div><div class="v"><span id="rTravelStock">0</span> <small>/ 160 mm</small></div></div>
+        <div class="stat runtset" id="runtStat"><div class="k">With-Runt travel</div><div class="v"><span id="rTravelRunt">0</span> <small>/ 160 mm</small></div></div>
+      </div>
+      <div class="legend">
+        <span><i style="border-color:var(--runt)"></i> With Runt</span>
+        <span><i style="border-color:var(--stock); border-top-style:dashed"></i> Stock air spring</span>
+        <span><b class="swatch" style="background:var(--primaryAir)"></b> Main air</span>
+        <span><b class="swatch" style="background:var(--secondaryAir)"></b> Runt 2nd chamber</span>
+        <span><b class="swatch" style="background:var(--float)"></b> Floating piston</span>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <button id="play">Pause</button>
+    <div class="sliderRow">
+      <label>Load</label>
+      <input id="slider" type="range" min="0" max="1000" value="0" />
+      <label><span id="pct">0</span>%</label>
+    </div>
+  </footer>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+/* ============================================================
+   1. PHYSICS MODEL  (polytropic air spring, illustrative)
+   Same MAIN air pressure with vs. without the Runt, so the two
+   curves are identical until the Runt's set pressure is reached.
+   Force ∝ gauge pressure (constant piston area) → we plot psi.
+   ============================================================ */
+const PHYS = {
+  n: 1.1,            // polytropic exponent
+  Patm: 14.7,        // atmospheric, psi
+  T: 160,            // total fork travel, mm
+  Lp0: 200,          // main air-column length at full extension, mm
+  Ls0: 60,           // Runt secondary chamber length, mm
+  mainP0: 65,        // main air pressure, psi gauge (SAME for stock & Runt)
+  runtSet: 125       // Runt set pressure, psi gauge (the "higher certain PSI")
+};
+const absP = (g) => g + PHYS.Patm;
+
+// Stock single chamber (also == the Runt before activation)
+function forceStock(t) {
+  const x = PHYS.T * t;
+  const Pabs = absP(PHYS.mainP0) * Math.pow(PHYS.Lp0 / (PHYS.Lp0 - x), PHYS.n);
+  return Pabs - PHYS.Patm;            // gauge psi  (∝ force)
+}
+
+// Runt: solve floating-piston displacement u so the two chambers' pressures equalize.
+function runtState(t) {
+  const x = PHYS.T * t;
+  const Pp0a = absP(PHYS.mainP0), Ps0a = absP(PHYS.runtSet);
+  const ppAbs = (u) => Pp0a * Math.pow(PHYS.Lp0 / (PHYS.Lp0 - x + u), PHYS.n);
+  const psAbs = (u) => Ps0a * Math.pow(PHYS.Ls0 / (PHYS.Ls0 - u), PHYS.n);
+
+  let u = 0;
+  if (ppAbs(0) > psAbs(0)) {          // main pressure has reached the Runt set pressure → piston moves
+    let lo = 0, hi = PHYS.Ls0 * 0.985;
+    for (let i = 0; i < 40; i++) {
+      const mid = (lo + hi) / 2;
+      (ppAbs(mid) - psAbs(mid) > 0) ? (lo = mid) : (hi = mid);
+    }
+    u = (lo + hi) / 2;
+  }
+  const pPrimary = ppAbs(u) - PHYS.Patm;
+  const pSecondary = psAbs(u) - PHYS.Patm;
+  return { force: pPrimary, pPrimary, pSecondary, u, engaged: u > 0.05 };
+}
+const forceRunt = (t) => runtState(t).force;
+
+// Engagement point t_e (curves diverge here)
+let tEngage = 1;
+for (let i = 0; i <= 2000; i++) { const t = i / 2000; if (runtState(t).engaged) { tEngage = t; break; } }
+
+// Precompute curves for the graph
+const SAMPLES = 140;
+const curve = [];
+let maxForce = 0;
+for (let i = 0; i <= SAMPLES; i++) {
+  const t = i / SAMPLES;
+  const s = forceStock(t), r = forceRunt(t);
+  curve.push({ t, stock: s, runt: r });
+  maxForce = Math.max(maxForce, s, r);
+}
+maxForce *= 1.06;
+
+/* ------------------------------------------------------------
+   Force-driven comparison: apply the SAME load to both forks and
+   let each settle to its own travel. Both curves are monotonic in
+   travel, so invert by bisection. The drive variable d∈[0,1] maps
+   load from the rest force (t=0, identical for both) up to the force
+   that just bottoms the Runt fork — past engagement the softer Runt
+   curve needs MORE travel to reach a given force, so it sinks deeper.
+   ------------------------------------------------------------ */
+function travelForForce(fn, F) {
+  if (F <= fn(0)) return 0;
+  if (F >= fn(1)) return 1;
+  let lo = 0, hi = 1;
+  for (let i = 0; i < 40; i++) { const m = (lo + hi) / 2; (fn(m) < F) ? (lo = m) : (hi = m); }
+  return (lo + hi) / 2;
+}
+const Fmin = forceStock(0);           // rest force, same for both (≈ main pressure)
+const Fmax = forceRunt(1);            // load that just bottoms the Runt fork
+function driveState(d) {
+  const dd = Math.min(1, Math.max(0, d));
+  const F = Fmin + dd * (Fmax - Fmin);
+  return { d: dd, F, tStock: travelForForce(forceStock, F), tRunt: travelForForce(forceRunt, F) };
+}
+
+/* ============================================================
+   2. SHARED STATE  (single source of truth)
+   ============================================================ */
+const state = { t: 0, playing: true, phase: 0 };
+
+/* ============================================================
+   3. THREE.JS — realistic half-section fork-cartridge cutaway
+   Geometry authored in millimetres, scaled to world units.
+   Each part = a rounded back half-cylinder + a flat machined
+   "cut face" on the z=0 section plane.
+   ============================================================ */
+const S = 0.02;                       // mm -> world units
+const sceneCanvas = document.getElementById('scene');
+const sceneWrap = document.getElementById('sceneWrap');
+const renderer = new THREE.WebGLRenderer({ canvas: sceneCanvas, antialias: true, alpha: true });
+renderer.setClearColor(0x000000, 0);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 100);
+camera.position.set(1.8, 5.6, 15.0);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enablePan = false;
+controls.enableZoom = true;
+controls.minDistance = 8; controls.maxDistance = 24;
+controls.minPolarAngle = Math.PI * 0.16; controls.maxPolarAngle = Math.PI * 0.64;
+controls.target.set(0, 245 * S, 0);
+controls.enabled = false;             // off while auto-playing; on when paused
+
+// environment reflections for the metal parts
+try {
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+} catch (e) { /* fall back to lights only */ }
+scene.add(new THREE.HemisphereLight(0xbcd3ea, 0x161c22, 0.7));
+const key = new THREE.DirectionalLight(0xffffff, 2.1); key.position.set(5, 9, 7); scene.add(key);
+const rim = new THREE.DirectionalLight(0x9fd0ff, 0.8); rim.position.set(-6, 4, 5); scene.add(rim);
+const edge = new THREE.DirectionalLight(0xcfe2ff, 0.9); edge.position.set(-3, 6, -6); scene.add(edge); // back-rim defines the black body
+
+// --- fixed geometry reference points (mm), y up, y=0 at bottom of shaft ---
+const BORE = 30;                       // air-column radius
+const TUBE_R = 38;                     // stanchion outer radius
+const FP_REST_BOTTOM = 300;            // floating piston bottom face at rest
+const FP_THICK = 16;
+const MAIN_REST_TOP = 105;             // main piston top face at rest (t=0)
+const MAIN_THICK = 16;
+const SEC_TOP = 376;                   // fixed top of secondary chamber (under the cap)
+const CAP_TOP = SEC_TOP + 30;          // Runt cap top (fixed)
+const TUBE_BOTTOM = 70, TUBE_TOP = CAP_TOP;
+
+const root = new THREE.Group();
+scene.add(root);
+
+const Zface = 0.02;                    // cut-face offset toward camera
+const mat = (o) => new THREE.MeshStandardMaterial({ side: THREE.DoubleSide, ...o });
+
+// A "part": rounded back half-cylinder + flat cut face on z=0.
+// Unit-height geometry, sized each frame via spanPart()/placePart().
+// `parent` lets us build each cartridge into its own offset group.
+function makePart(parent, radiusMM, shellMat, faceMat, faceWidthMM, renderOrder = 1) {
+  const g = new THREE.Group();
+  const shell = new THREE.Mesh(
+    new THREE.CylinderGeometry(radiusMM * S, radiusMM * S, 1, 44, 1, true, Math.PI / 2, Math.PI), shellMat);
+  const face = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), faceMat);
+  face.position.z = Zface; face.renderOrder = renderOrder;
+  g.add(shell, face);
+  g.userData = { faceW: (faceWidthMM ?? radiusMM * 2) };
+  parent.add(g);
+  return g;
+}
+function spanPart(g, yb, yt) {
+  const h = Math.max(1e-4, yt - yb), c = (yb + yt) / 2;
+  g.position.y = c * S;
+  g.children[0].scale.set(1, h * S, 1);
+  g.children[1].scale.set(g.userData.faceW * S, h * S, 1);
+}
+
+// --- material palette (matched to the real DSD Runt: matte-black anodized body,
+//     gold-anodized pistons, signature red air valves, polished steel shaft) ---
+const M = {
+  tubeShell: mat({ color: 0x1d1e21, metalness: 0.6, roughness: 0.4, envMapIntensity: 1.05 }), // matte black anodized
+  tubeFace:  mat({ color: 0x2b2d31, metalness: 0.55, roughness: 0.5 }),
+  capShell:  mat({ color: 0x0d0e10, metalness: 0.7, roughness: 0.3, envMapIntensity: 0.95 }),   // gloss machined black
+  capFace:   mat({ color: 0x191a1d, metalness: 0.6, roughness: 0.4 }),
+  valve:     mat({ color: 0xb81f1f, metalness: 0.5, roughness: 0.33, envMapIntensity: 1.0,
+                   emissive: 0x3a0606, emissiveIntensity: 0.0 }),                                // signature red
+  mainShell: mat({ color: 0xb0822c, metalness: 0.9, roughness: 0.31, envMapIntensity: 1.0 }),   // bronze-gold anodized
+  mainFace:  mat({ color: 0xc99a3a, metalness: 0.65, roughness: 0.4 }),
+  floatShell:mat({ color: 0xd4a73c, metalness: 0.9, roughness: 0.28,
+                   emissive: 0x40300a, emissiveIntensity: 0.0 }),                                // brighter gold (hero)
+  floatFace: mat({ color: 0xeac358, metalness: 0.6, roughness: 0.36,
+                   emissive: 0x40300a, emissiveIntensity: 0.0 }),
+  shaftShell:mat({ color: 0xbcc4cd, metalness: 1.0, roughness: 0.15, envMapIntensity: 1.3 }),    // polished steel
+  shaftFace: mat({ color: 0xccd4dc, metalness: 0.85, roughness: 0.2 }),
+  glideShell:mat({ color: 0xdde2df, metalness: 0.1, roughness: 0.7 }),                           // white glide ring
+  glideFace: mat({ color: 0xe7ece9, metalness: 0.1, roughness: 0.7 }),
+  oring:     mat({ color: 0x060607, metalness: 0.1, roughness: 0.85 }),                          // black o-ring
+  threadFace:mat({ color: 0x0a0b0c, metalness: 0.5, roughness: 0.55 }),
+  airPrimShell: mat({ color: 0x2f6fb0, transparent: true, opacity: 0.16, roughness: 1, metalness: 0,
+                      depthWrite: false }),
+  airSecShell:  mat({ color: 0xc05a28, transparent: true, opacity: 0.16, roughness: 1, metalness: 0,
+                      depthWrite: false }),
+};
+const colPrim = { lo: new THREE.Color(0x223a52), hi: new THREE.Color(0x3a8fe0) };
+const colSec  = { lo: new THREE.Color(0x4a2a1a), hi: new THREE.Color(0xe8743b) };
+const airFace = (col) => new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.5,
+  side: THREE.DoubleSide, depthWrite: false });
+
+// full-cylinder helper for round hardware (valves, tips)
+function cyl(parent, rTop, rBot, hMM, material, x, y, z) {
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(rTop * S, rBot * S, hMM * S, 22), material);
+  m.position.set(x * S, y * S, z * S); parent.add(m); return m;
+}
+
+// White laser-etched style branding on the front-left of the black body
+function brandTexture() {
+  const c = document.createElement('canvas'); c.width = 256; c.height = 1024;
+  const x = c.getContext('2d');
+  x.translate(128, 512); x.rotate(-Math.PI / 2);
+  x.fillStyle = '#eef2f4'; x.textAlign = 'center'; x.textBaseline = 'middle';
+  x.font = '700 84px Arial'; x.fillText('THE RUNT', 0, -70);
+  x.font = '600 44px Arial'; x.letterSpacing = '2px';
+  x.fillText('DIAZ SUSPENSION DESIGN', 0, 0);
+  x.globalAlpha = 0.8; x.font = '500 30px Arial';
+  x.fillText('PATENT  PENDING', 0, 52);
+  const tex = new THREE.CanvasTexture(c); tex.anisotropy = 8; return tex;
+}
+const brandTex = brandTexture();
+
+// ------------------------------------------------------------
+// Build one fork cartridge into its own x-offset group.
+// hasRunt === false  → "stock" single-chamber air spring:
+//   one main air column, a plain top cap, a single air valve,
+//   NO floating piston and NO secondary chamber.
+// hasRunt === true   → the dual-chamber Runt (the hero part).
+// Returns a handle with part refs + a live `edges` map (for labels).
+// ------------------------------------------------------------
+function buildCartridge(xOffsetMM, hasRunt) {
+  const cg = new THREE.Group();
+  cg.position.x = xOffsetMM * S;
+  root.add(cg);
+  const tubeTop = hasRunt ? CAP_TOP : (SEC_TOP + 22);   // stock body is a touch shorter (no Runt cap stack)
+
+  // Stanchion tube: opaque metal back shell + two wall cut-face strips.
+  const tubeShell = makePart(cg, TUBE_R, M.tubeShell, M.tubeFace, 0.0001, 0);
+  spanPart(tubeShell, TUBE_BOTTOM, tubeTop);
+  const wallL = makePart(cg, TUBE_R, M.tubeFace, M.tubeFace, TUBE_R - BORE, 1);
+  const wallR = makePart(cg, TUBE_R, M.tubeFace, M.tubeFace, TUBE_R - BORE, 1);
+  spanPart(wallL, TUBE_BOTTOM, tubeTop); wallL.children[0].visible = false;
+  spanPart(wallR, TUBE_BOTTOM, tubeTop); wallR.children[0].visible = false;
+  wallL.children[1].position.x = -((BORE + TUBE_R) / 2) * S;
+  wallR.children[1].position.x =  ((BORE + TUBE_R) / 2) * S;
+
+  // Main (low-pressure) air chamber — translucent, sized each frame.
+  const airPrim = makePart(cg, BORE, M.airPrimShell, airFace(colPrim.hi), BORE * 2, 2);
+
+  // Solid moving parts — gold-anodized main piston on a polished steel shaft.
+  const shaft = makePart(cg, 10, M.shaftShell, M.shaftFace, 20, 3);
+  const mainPiston = makePart(cg, BORE, M.mainShell, M.mainFace, BORE * 2, 4);
+  const mainGlide  = makePart(cg, BORE + 1.6, M.glideShell, M.glideFace, (BORE + 1.6) * 2, 5);
+  const mainOring  = makePart(cg, BORE + 1.2, M.oring, M.oring, (BORE + 1.2) * 2, 5);
+
+  const c = { cg, xOffsetMM, hasRunt, airPrim, shaft, mainPiston, mainGlide, mainOring, edges: {} };
+
+  if (hasRunt) {
+    // secondary (high-pressure) chamber + floating piston
+    c.airSec = makePart(cg, BORE, M.airSecShell, airFace(colSec.hi), BORE * 2, 2);
+    c.floatPiston = makePart(cg, BORE, M.floatShell, M.floatFace, BORE * 2, 4);
+    c.floatGlide  = makePart(cg, BORE + 1.6, M.glideShell, M.glideFace, (BORE + 1.6) * 2, 5);
+    c.floatOring  = makePart(cg, BORE + 1.2, M.oring, M.oring, (BORE + 1.2) * 2, 5);
+
+    // stepped matte-black machined cap + collar with the signature twin RED air valves
+    const cap = makePart(cg, TUBE_R + 1, M.capShell, M.capFace, (TUBE_R + 1) * 2, 4);
+    spanPart(cap, SEC_TOP, SEC_TOP + 22);
+    const capCollar = makePart(cg, TUBE_R - 5, M.capShell, M.capFace, (TUBE_R - 5) * 2, 4);
+    spanPart(capCollar, SEC_TOP + 22, CAP_TOP + 6);
+    for (let i = 0; i < 3; i++) {
+      const tg = makePart(cg, TUBE_R + 1, M.threadFace, M.threadFace, (TUBE_R + 1) * 2, 5);
+      tg.children[0].visible = false;
+      const y = SEC_TOP + 4 + i * 5;
+      spanPart(tg, y, y + 1.4);
+    }
+    for (const sx of [-9, 9]) {
+      cyl(cg, 7, 7, 5, M.capShell, sx, CAP_TOP + 8, -8);    // raised black boss
+      cyl(cg, 5, 5.6, 15, M.valve, sx, CAP_TOP + 17, -8);   // red valve body (one per chamber)
+      cyl(cg, 2.4, 2.4, 5, M.oring, sx, CAP_TOP + 26, -8);  // black valve core
+    }
+
+    // White laser-etched branding on the front-left of the black body
+    const brand = new THREE.Mesh(new THREE.PlaneGeometry(40 * S, 210 * S),
+      new THREE.MeshBasicMaterial({ map: brandTex, transparent: true, depthWrite: false, opacity: 0.9 }));
+    brand.position.set(-(BORE + 14) * S, 232 * S, 0.05);
+    brand.rotation.y = 0.34; cg.add(brand);
+  } else {
+    // plain top cap + a single air valve (one chamber → one valve)
+    const cap = makePart(cg, TUBE_R + 1, M.capShell, M.capFace, (TUBE_R + 1) * 2, 4);
+    spanPart(cap, SEC_TOP, SEC_TOP + 22);
+    cyl(cg, 7, 7, 5, M.capShell, 0, SEC_TOP + 30, -8);
+    cyl(cg, 5, 5.6, 15, M.valve, 0, SEC_TOP + 39, -8);
+    cyl(cg, 2.4, 2.4, 5, M.oring, 0, SEC_TOP + 48, -8);
+  }
+  return c;
+}
+
+const CART_DX = 62;                                   // half the gap between the two cartridges (mm)
+const stockCart = buildCartridge(-CART_DX, false);    // left  — without the Runt
+const runtCart  = buildCartridge(+CART_DX, true);     // right — with the Runt
+
+/* ---- labels (projected HTML) — annotate the Runt cartridge (right) ---- */
+const E = runtCart.edges;             // live section edges of the Runt cartridge
+const labelDefs = [
+  { id: 'sec', text: 'Runt 2nd chamber', sub: 'high pressure', color: 'var(--secondaryAir)',
+    at: () => [-BORE * 0.5, (E.secYb + E.secYt) / 2] },
+  { id: 'float', text: 'Floating piston', dyn: true, color: 'var(--float)',
+    at: () => [BORE * 0.55, (E.fpYb + E.fpYt) / 2] },
+  { id: 'prim', text: 'Main air chamber', sub: 'low pressure', color: 'var(--primaryAir)',
+    at: () => [-BORE * 0.5, (E.priYb + E.priYt) / 2] },
+  { id: 'main', text: 'Main air piston', sub: '', color: '#cdd6df',
+    at: () => [BORE * 0.55, (E.mainYb + E.mainYt) / 2] },
+];
+const labelEls = labelDefs.map(d => {
+  const el = document.createElement('div'); el.className = 'label';
+  el.innerHTML = `<span class="dot" style="background:${d.color}"></span><span class="txt"></span>`;
+  sceneWrap.appendChild(el);
+  d._txt = el.querySelector('.txt');
+  return el;
+});
+function labelText(d, rs) {
+  if (d.id === 'float') return `Floating piston <span class="sub">${rs.engaged ? 'MOVING' : 'held'}</span>`;
+  return `${d.text}${d.sub ? ` <span class="sub">${d.sub}</span>` : ''}`;
+}
+
+// A title chip floating above each cartridge.
+function makeTitle(html, cls) {
+  const el = document.createElement('div'); el.className = 'label title' + (cls ? ' ' + cls : '');
+  el.innerHTML = html; sceneWrap.appendChild(el); return el;
+}
+const stockTitle = makeTitle('Without Runt <span class="sub">stock air spring</span>');
+const runtTitle  = makeTitle('With Runt', 'isrunt');
+
+const runtBracket = document.getElementById('runtBracket');
+
+// tint a translucent air chamber by its pressure
+function tintAir(part, lo, hi, p, p0) {
+  const n = THREE.MathUtils.clamp((p - p0) / (maxForce - p0), 0, 1);
+  part.children[1].material.color.copy(lo).lerp(hi, 0.4 + 0.6 * n);
+  part.children[0].material.color.copy(hi);
+}
+
+// Update one cartridge from stroke t. The main piston rises identically in
+// both; the Runt additionally moves its floating piston once engaged.
+function updateCartridge(c, t) {
+  const mainTop = MAIN_REST_TOP + PHYS.T * t;
+  spanPart(c.shaft, 0, mainTop - MAIN_THICK + 4);
+  spanPart(c.mainPiston, mainTop - MAIN_THICK, mainTop);
+  spanPart(c.mainGlide, mainTop - 5, mainTop - 2);
+  spanPart(c.mainOring, mainTop - 9, mainTop - 6.5);
+
+  if (!c.hasRunt) {
+    // stock: one air column from the main piston up to the cap
+    spanPart(c.airPrim, mainTop, SEC_TOP);
+    const f = forceStock(t);
+    tintAir(c.airPrim, colPrim.lo, colPrim.hi, f, PHYS.mainP0);
+    Object.assign(c.edges, { mainYb: mainTop - MAIN_THICK, mainYt: mainTop, priYb: mainTop, priYt: SEC_TOP });
+    return { force: f, pPrimary: f, pSecondary: 0, u: 0, engaged: false };
+  }
+
+  const rs = runtState(t);
+  const fpBottom = FP_REST_BOTTOM + rs.u, fpTop = fpBottom + FP_THICK;
+  spanPart(c.floatPiston, fpBottom, fpTop);
+  spanPart(c.floatGlide, fpTop - 4, fpTop - 1.5);
+  spanPart(c.floatOring, fpTop - 8, fpTop - 5.5);
+  spanPart(c.airPrim, mainTop, fpBottom);
+  spanPart(c.airSec, fpTop, SEC_TOP);
+  tintAir(c.airPrim, colPrim.lo, colPrim.hi, rs.pPrimary, PHYS.mainP0);
+  tintAir(c.airSec, colSec.lo, colSec.hi, rs.pSecondary, PHYS.runtSet);
+
+  Object.assign(c.edges, {
+    mainYb: mainTop - MAIN_THICK, mainYt: mainTop,
+    priYb: mainTop, priYt: fpBottom,
+    fpYb: fpBottom, fpYt: fpTop,
+    secYb: fpTop, secYt: SEC_TOP,
+    runtYb: fpBottom, runtYt: CAP_TOP + 30
+  });
+  return rs;
+}
+
+// Update the whole 3D scene from the shared load d∈[0,1]. Each fork
+// compresses to its OWN travel for that load, so the depths differ.
+function updateScene(d) {
+  const ds = driveState(d);
+  updateCartridge(stockCart, ds.tStock);
+  ds.rs = updateCartridge(runtCart, ds.tRunt);
+  // floating piston glow only once it's actually moving
+  const glow = ds.rs.engaged ? 0.6 : 0.0;
+  M.floatShell.emissiveIntensity = glow; M.floatFace.emissiveIntensity = glow;
+  return ds;
+}
+
+const v = new THREE.Vector3();
+function projectPoint(xMM, yMM, group = root) {
+  v.set(xMM * S, yMM * S, Zface).applyMatrix4(group.matrixWorld).project(camera);
+  return { x: (v.x * 0.5 + 0.5) * sceneWrap.clientWidth, y: (-v.y * 0.5 + 0.5) * sceneWrap.clientHeight, z: v.z };
+}
+function placeTitle(el, cart, yMM) {
+  const p = projectPoint(0, yMM, cart.cg);
+  if (p.z > 1) { el.style.opacity = '0'; return; }
+  el.style.opacity = '1'; el.style.left = p.x + 'px'; el.style.top = p.y + 'px';
+}
+function updateOverlays(rs, now) {
+  labelDefs.forEach((d, i) => {
+    const [xm, ym] = d.at();
+    const p = projectPoint(xm, ym, runtCart.cg);
+    const el = labelEls[i];
+    if (p.z > 1) { el.style.opacity = '0'; return; }
+    el.style.opacity = '1';
+    el.style.left = p.x + 'px'; el.style.top = p.y + 'px';
+    d._txt.innerHTML = labelText(d, rs);
+  });
+  // Titles above each cartridge
+  placeTitle(stockTitle, stockCart, SEC_TOP + 70);
+  placeTitle(runtTitle, runtCart, CAP_TOP + 78);
+
+  // Runt bracket: span the cartridge assembly (floating piston up to cap top), on the right.
+  const E = runtCart.edges;
+  const top = projectPoint(TUBE_R + 4, E.runtYt, runtCart.cg);
+  const bot = projectPoint(TUBE_R + 4, E.runtYb, runtCart.cg);
+  const rightEdge = Math.max(projectPoint(TUBE_R, E.runtYt, runtCart.cg).x,
+                             projectPoint(TUBE_R, E.runtYb, runtCart.cg).x);
+  runtBracket.style.opacity = '1';
+  runtBracket.style.left = (rightEdge + 14) + 'px';
+  runtBracket.style.top = top.y + 'px';
+  runtBracket.style.height = Math.max(20, bot.y - top.y) + 'px';
+  runtBracket.style.width = '54px';
+
+  // gently pulse the signature red valves to draw the eye to the Runt
+  const pulse = 0.15 + 0.25 * (0.5 + 0.5 * Math.sin(now * 0.0035));
+  M.valve.emissiveIntensity = pulse;
+}
+
+/* ============================================================
+   4. GRAPH  (2D canvas: force vs travel)
+   ============================================================ */
+const gCanvas = document.getElementById('graph');
+const gctx = gCanvas.getContext('2d');
+let gW = 0, gH = 0, dpr = 1;
+const PAD = { l: 52, r: 14, t: 16, b: 34 };
+function resizeGraph() {
+  dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const r = gCanvas.getBoundingClientRect();
+  gW = r.width; gH = r.height;
+  gCanvas.width = Math.round(gW * dpr); gCanvas.height = Math.round(gH * dpr);
+  gctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+const gx = (t) => PAD.l + t * (gW - PAD.l - PAD.r);
+const gy = (f) => (gH - PAD.b) - (f / maxForce) * (gH - PAD.t - PAD.b);
+const cssCache = {};
+const getCSS = (vName) => cssCache[vName] || (cssCache[vName] = getComputedStyle(document.documentElement).getPropertyValue(vName).trim());
+
+function drawGraph(ds) {
+  if (!gW) return;
+  gctx.clearRect(0, 0, gW, gH);
+  gctx.strokeStyle = '#26313d'; gctx.fillStyle = '#7c8b9b'; gctx.lineWidth = 1;
+  gctx.font = '11px system-ui, sans-serif';
+  gctx.textAlign = 'right'; gctx.textBaseline = 'middle';
+  for (let i = 0; i <= 4; i++) {
+    const f = (maxForce / 1.06) * i / 4, y = gy(f);
+    gctx.beginPath(); gctx.moveTo(PAD.l, y); gctx.lineTo(gW - PAD.r, y); gctx.stroke();
+    gctx.fillText(Math.round(f), PAD.l - 8, y);
+  }
+  gctx.textAlign = 'center'; gctx.textBaseline = 'top';
+  for (let i = 0; i <= 4; i++) gctx.fillText(Math.round((i / 4) * PHYS.T), gx(i / 4), gH - PAD.b + 7);
+  gctx.fillStyle = '#9aabbb';
+  gctx.fillText('Fork travel (mm)', (PAD.l + gW - PAD.r) / 2, gH - 14);
+  gctx.save(); gctx.translate(13, (PAD.t + gH - PAD.b) / 2); gctx.rotate(-Math.PI / 2);
+  gctx.fillText('Spring force (relative)', 0, 0); gctx.restore();
+
+  // engagement marker
+  const xe = gx(tEngage);
+  gctx.setLineDash([3, 4]); gctx.strokeStyle = getCSS('--runt'); gctx.globalAlpha = 0.7;
+  gctx.beginPath(); gctx.moveTo(xe, PAD.t); gctx.lineTo(xe, gH - PAD.b); gctx.stroke();
+  gctx.globalAlpha = 1; gctx.setLineDash([]);
+  gctx.fillStyle = getCSS('--runt'); gctx.textAlign = 'left'; gctx.textBaseline = 'top';
+  gctx.fillText(`Runt activates · ${PHYS.runtSet} psi`, xe + 5, PAD.t + 2);
+
+  // stock curve (dashed) — note: identical to Runt before activation
+  gctx.lineWidth = 2; gctx.strokeStyle = getCSS('--stock'); gctx.setLineDash([6, 5]);
+  gctx.beginPath(); curve.forEach((p, i) => { const X = gx(p.t), Y = gy(p.stock); i ? gctx.lineTo(X, Y) : gctx.moveTo(X, Y); });
+  gctx.stroke(); gctx.setLineDash([]);
+
+  // runt curve (solid)
+  gctx.lineWidth = 3; gctx.strokeStyle = getCSS('--runt');
+  gctx.beginPath(); curve.forEach((p, i) => { const X = gx(p.t), Y = gy(p.runt); i ? gctx.lineTo(X, Y) : gctx.moveTo(X, Y); });
+  gctx.stroke();
+
+  // current load: a horizontal force line, with each fork sitting at its own travel.
+  // The horizontal gap between the dots IS the extra travel the Runt uses for the same load.
+  const y = gy(ds.F), Xs = gx(ds.tStock), Xr = gx(ds.tRunt);
+  gctx.strokeStyle = 'rgba(255,255,255,.18)'; gctx.lineWidth = 1;
+  gctx.beginPath(); gctx.moveTo(PAD.l, y); gctx.lineTo(gW - PAD.r, y); gctx.stroke();
+
+  // connector showing the travel difference
+  if (Xr - Xs > 1.5) {
+    gctx.strokeStyle = getCSS('--runt'); gctx.lineWidth = 2; gctx.setLineDash([2, 3]);
+    gctx.beginPath(); gctx.moveTo(Xs, y); gctx.lineTo(Xr, y); gctx.stroke(); gctx.setLineDash([]);
+    const dmm = Math.round((ds.tRunt - ds.tStock) * PHYS.T);
+    gctx.fillStyle = getCSS('--runt'); gctx.textAlign = 'center'; gctx.textBaseline = 'bottom';
+    gctx.fillText(`+${dmm} mm travel`, (Xs + Xr) / 2, y - 6);
+  }
+
+  // stock dot (hollow gray)
+  gctx.lineWidth = 2; gctx.strokeStyle = getCSS('--stock');
+  gctx.beginPath(); gctx.arc(Xs, y, 4.5, 0, Math.PI * 2); gctx.stroke();
+  // runt dot (filled teal, glowing)
+  gctx.fillStyle = getCSS('--runt'); gctx.shadowColor = getCSS('--runt'); gctx.shadowBlur = 12;
+  gctx.beginPath(); gctx.arc(Xr, y, 6, 0, Math.PI * 2); gctx.fill(); gctx.shadowBlur = 0;
+  gctx.fillStyle = '#06231f';
+  gctx.beginPath(); gctx.arc(Xr, y, 2.2, 0, Math.PI * 2); gctx.fill();
+}
+
+/* ============================================================
+   5. READOUTS
+   ============================================================ */
+const els = {
+  load: document.getElementById('rLoad'), travelStock: document.getElementById('rTravelStock'),
+  travelRunt: document.getElementById('rTravelRunt'), fp: document.getElementById('fpState'),
+  pct: document.getElementById('pct'), slider: document.getElementById('slider'),
+  play: document.getElementById('play'), runtStat: document.getElementById('runtStat')
+};
+function updateReadouts(ds) {
+  els.load.textContent = Math.round(ds.F);
+  els.travelStock.textContent = Math.round(PHYS.T * ds.tStock);
+  els.travelRunt.textContent = Math.round(PHYS.T * ds.tRunt);
+  els.fp.textContent = ds.rs.engaged ? 'ENGAGED' : 'HELD';
+  els.fp.className = ds.rs.engaged ? 'engaged' : 'held';
+  els.runtStat.classList.toggle('reached', ds.rs.engaged);
+  els.pct.textContent = Math.round(ds.d * 100);
+  if (document.activeElement !== els.slider) els.slider.value = Math.round(ds.d * 1000);
+}
+
+/* ============================================================
+   6. INTERACTION
+   ============================================================ */
+function setT(t, fromUser) {
+  state.t = THREE.MathUtils.clamp(t, 0, 1);
+  state.phase = state.t;
+  if (fromUser) setPlaying(false);
+}
+function setPlaying(p) {
+  state.playing = p;
+  els.play.textContent = p ? 'Pause' : 'Play';
+  controls.enabled = !p;
+}
+els.play.addEventListener('click', () => setPlaying(!state.playing));
+els.slider.addEventListener('input', () => setT(+els.slider.value / 1000, true));
+
+let dragging = false, dragStartY = 0, dragStartT = 0;
+sceneCanvas.addEventListener('pointerdown', (e) => {
+  if (!state.playing) return;         // paused → OrbitControls rotates instead
+  dragging = true; dragStartY = e.clientY; dragStartT = state.t;
+  sceneCanvas.setPointerCapture(e.pointerId); setPlaying(false);
+});
+sceneCanvas.addEventListener('pointermove', (e) => {
+  if (!dragging) return;
+  const dy = (dragStartY - e.clientY) / sceneWrap.clientHeight;
+  setT(dragStartT + dy * 1.4, true);
+});
+sceneCanvas.addEventListener('pointerup', (e) => { dragging = false; try { sceneCanvas.releasePointerCapture(e.pointerId); } catch (_) {} });
+
+let gDrag = false;
+const graphToT = (e) => { const r = gCanvas.getBoundingClientRect();
+  return THREE.MathUtils.clamp((e.clientX - r.left - PAD.l) / (gW - PAD.l - PAD.r), 0, 1); };
+gCanvas.addEventListener('pointerdown', (e) => { gDrag = true; gCanvas.setPointerCapture(e.pointerId); setT(graphToT(e), true); });
+gCanvas.addEventListener('pointermove', (e) => { if (gDrag) setT(graphToT(e), true); });
+gCanvas.addEventListener('pointerup', (e) => { gDrag = false; try { gCanvas.releasePointerCapture(e.pointerId); } catch (_) {} });
+gCanvas.style.cursor = 'ew-resize';
+
+/* ============================================================
+   7. RESIZE + RENDER LOOP
+   ============================================================ */
+function resize() {
+  const w = sceneWrap.clientWidth, h = sceneWrap.clientHeight;
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h; camera.updateProjectionMatrix();
+  resizeGraph();
+}
+window.addEventListener('resize', resize);
+
+const smootherstep = (x) => x * x * x * (x * (x * 6 - 15) + 10);
+let last = performance.now();
+let started = false;
+
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  if (state.playing) {
+    state.phase = (state.phase + dt * 0.32) % 2;
+    const lin = state.phase < 1 ? state.phase : 2 - state.phase;
+    state.t = smootherstep(lin);
+  }
+  const ds = updateScene(state.t);
+  controls.update();
+  root.updateMatrixWorld();
+  renderer.render(scene, camera);
+  updateOverlays(ds.rs, now);
+  drawGraph(ds);
+  updateReadouts(ds);
+  if (!started) { started = true; window.__runtReady = true; }
+  requestAnimationFrame(frame);
+}
+
+resize();
+setPlaying(true);
+requestAnimationFrame(frame);
+
+window.__runt = { setT: (t) => setT(t, true), setPlaying, state, tEngage, maxForce };
+</script>
+</body>
+</html>
