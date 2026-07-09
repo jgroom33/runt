@@ -32,12 +32,13 @@ Just open `index.html` in any modern browser.
     bracket; chamber colors brighten with pressure.
 
   Both forks see the **same load**, so at low load they sink to the same depth. Past engagement the
-  Runt's softer curve means it needs more travel to balance that load — so its main piston (and floating
-  piston) sink **deeper** than the stock fork's, which rides high. That growing depth gap is the point.
-- **Graph (right):** solid teal = **with Runt**, dashed gray = **stock air spring**, run at the *same*
-  main pressure. A horizontal line marks the current load; the hollow gray dot and filled teal dot sit on
-  each curve at that load — so the **horizontal gap between them is the extra travel** the Runt uses
-  (annotated `+N mm travel`). A teal tick marks where the Runt activates.
+  Runt's second stage adds support, lifting its curve above stock — so it balances that load at **less**
+  travel and rides **higher** than the stock fork, keeping travel in reserve. That growing support gap is
+  the point.
+- **Graph (right):** solid teal = **with Runt**, dashed gray = **stock air spring**, on the *same* main
+  chamber. A horizontal line marks the current load; the hollow gray dot and filled teal dot sit on each
+  curve at that load — so the **horizontal gap between them is the travel the Runt holds in reserve**
+  (annotated `N mm more support`). A teal tick marks where the Runt activates.
 - **Readouts:** applied load (force), floating-piston state (HELD → ENGAGED), and the resulting **stock
   travel** vs **with-Runt travel**.
 
@@ -46,10 +47,10 @@ Just open `index.html` in any modern browser.
 The Runt is **set to a specific pressure** (here ~125 psi). Until the load pushes the main air pressure
 to that set point, the floating piston can't move, so the Runt does *nothing* and the fork compresses
 exactly like a stock air spring — same load, same depth (the two curves sit on top of each other). Once
-the load reaches the Runt's set pressure, the floating piston begins to move and the second chamber
-engages — flattening the end-stroke and taming the steep ramp a single air chamber suffers. Because that
-curve is softer, **for the same load the Runt fork sinks deeper into its travel** (near-linear,
-"coil-like"), while the stock fork rides high on its hard end-stroke ramp.
+the load reaches the Runt's set pressure, the floating piston engages the second stage, which **adds
+support** — lifting the mid-stroke and stiffening the end-stroke for more mid-stroke support and
+bottom-out resistance. Because that curve now sits **above** stock, **for the same load the Runt fork
+rides higher and keeps travel in reserve**, while the stock fork dives deeper and bottoms out first.
 
 ## Controls
 
@@ -62,11 +63,11 @@ curve is softer, **for the same load the Runt fork sinks deeper into its travel*
 ## A note on the physics
 
 The curves come from a polytropic air-spring model (`P·Vⁿ = const`). Both the "stock" and "Runt" cases
-use the **same main pressure**, so they are mathematically identical until the main pressure reaches the
-Runt's set pressure; past that, the floating-piston displacement is solved each step so the two chambers'
-pressures stay equalized. To show **depth** rather than force, the animation drives both forks with the
-same load and inverts each curve (by bisection) to find the travel where that fork balances the load. It
-is **illustrative**, tuned to read clearly on screen — not a calibrated
-model of any specific fork or pressure setup. All parameters live in the `PHYS` object near the top of
+share the **same main chamber**, so they are identical until the main pressure reaches the Runt's set
+pressure; past that, the Runt adds a smoothly-ramping second-stage support term (the floating piston
+compressing the secondary chamber), lifting its curve above stock. To show **depth** rather than force,
+the animation drives both forks with the same load and inverts each curve (by bisection) to find the
+travel where that fork balances the load. It is **illustrative**, tuned to read clearly on screen — not a
+calibrated model of any specific fork or pressure setup. All parameters live in the `PHYS` object near the top of
 the inline script in `index.html` if you want to retune them (travel, chamber sizes, main pressure, Runt
-set pressure, polytropic exponent).
+set pressure, second-stage `support`, polytropic exponent).

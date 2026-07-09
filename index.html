@@ -112,9 +112,9 @@
     <p>Two fork air-spring cartridges under the <b>same applied load</b> — <b>left: stock</b> single chamber,
        <b>right: with the Runt</b> installed (teal). At low load the Runt does <b>nothing</b> and both forks
        compress to the same depth. Once the load drives the main pressure past the Runt's set pressure
-       (<b class="thr">~125&nbsp;psi</b>) its <b>floating piston</b> begins to move and the second chamber
-       engages — so for the <i>same load</i> the Runt sinks <b>deeper and more progressively</b> into its
-       travel (near-linear, coil-like), while the stock spring ramps up hard and rides high.</p>
+       (<b class="thr">~125&nbsp;psi</b>) its <b>floating piston</b> engages the second stage, <b>adding
+       support</b> — lifting the mid-stroke and stiffening the end-stroke. So for the <i>same load</i> the
+       Runt <b>rides higher</b> and keeps travel in reserve, while the stock spring dives deeper and bottoms.</p>
   </header>
 
   <main>
@@ -158,8 +158,11 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
 /* ============================================================
    1. PHYSICS MODEL  (polytropic air spring, illustrative)
-   Same MAIN air pressure with vs. without the Runt, so the two
-   curves are identical until the Runt's set pressure is reached.
+   Both forks share the same MAIN air chamber, so the two curves
+   are identical until the main pressure reaches the Runt's set
+   pressure (~mid-travel). Past that the Runt's second stage engages
+   and ADDS support — lifting the mid-stroke and ramping up the
+   end-stroke (more mid-stroke support + bottom-out resistance).
    Force ∝ gauge pressure (constant piston area) → we plot psi.
    ============================================================ */
 const PHYS = {
@@ -169,9 +172,11 @@ const PHYS = {
   Lp0: 200,          // main air-column length at full extension, mm
   Ls0: 60,           // Runt secondary chamber length, mm
   mainP0: 65,        // main air pressure, psi gauge (SAME for stock & Runt)
-  runtSet: 125       // Runt set pressure, psi gauge (the "higher certain PSI")
+  runtSet: 125,      // Runt set pressure, psi gauge (where the 2nd stage wakes up)
+  support: 135       // extra support the Runt adds by bottom-out (psi, illustrative)
 };
 const absP = (g) => g + PHYS.Patm;
+const smooth = (x) => { const c = Math.min(1, Math.max(0, x)); return c * c * c * (c * (c * 6 - 15) + 10); };
 
 // Stock single chamber (also == the Runt before activation)
 function forceStock(t) {
@@ -180,31 +185,26 @@ function forceStock(t) {
   return Pabs - PHYS.Patm;            // gauge psi  (∝ force)
 }
 
-// Runt: solve floating-piston displacement u so the two chambers' pressures equalize.
-function runtState(t) {
-  const x = PHYS.T * t;
-  const Pp0a = absP(PHYS.mainP0), Ps0a = absP(PHYS.runtSet);
-  const ppAbs = (u) => Pp0a * Math.pow(PHYS.Lp0 / (PHYS.Lp0 - x + u), PHYS.n);
-  const psAbs = (u) => Ps0a * Math.pow(PHYS.Ls0 / (PHYS.Ls0 - u), PHYS.n);
+// Engagement point t_e: where the main pressure first reaches the Runt set pressure.
+let tEngage = 1;
+for (let i = 0; i <= 2000; i++) { const t = i / 2000; if (forceStock(t) >= PHYS.runtSet) { tEngage = t; break; } }
 
-  let u = 0;
-  if (ppAbs(0) > psAbs(0)) {          // main pressure has reached the Runt set pressure → piston moves
-    let lo = 0, hi = PHYS.Ls0 * 0.985;
-    for (let i = 0; i < 40; i++) {
-      const mid = (lo + hi) / 2;
-      (ppAbs(mid) - psAbs(mid) > 0) ? (lo = mid) : (hi = mid);
-    }
-    u = (lo + hi) / 2;
+// Runt: main chamber (== stock) PLUS a second stage that engages at the set
+// pressure and adds support. The floating piston travels into the secondary
+// chamber as it engages, compressing it (its pressure drives the added support).
+function runtState(t) {
+  const pMain = forceStock(t);                 // main chamber gauge pressure (∝ base force)
+  const engaged = t > tEngage;
+  let u = 0, add = 0, pSecondary = PHYS.runtSet;
+  if (engaged) {
+    const f = smooth((t - tEngage) / (1 - tEngage));   // 0→1 across the engaged range
+    u = PHYS.Ls0 * 0.88 * f;                            // floating-piston travel (visible)
+    pSecondary = absP(PHYS.runtSet) * Math.pow(PHYS.Ls0 / (PHYS.Ls0 - u), PHYS.n) - PHYS.Patm;
+    add = PHYS.support * f;                             // added support force, 0 at engagement
   }
-  const pPrimary = ppAbs(u) - PHYS.Patm;
-  const pSecondary = psAbs(u) - PHYS.Patm;
-  return { force: pPrimary, pPrimary, pSecondary, u, engaged: u > 0.05 };
+  return { force: pMain + add, pPrimary: pMain, pSecondary, u, engaged };
 }
 const forceRunt = (t) => runtState(t).force;
-
-// Engagement point t_e (curves diverge here)
-let tEngage = 1;
-for (let i = 0; i <= 2000; i++) { const t = i / 2000; if (runtState(t).engaged) { tEngage = t; break; } }
 
 // Precompute curves for the graph
 const SAMPLES = 140;
@@ -223,8 +223,9 @@ maxForce *= 1.06;
    let each settle to its own travel. Both curves are monotonic in
    travel, so invert by bisection. The drive variable d∈[0,1] maps
    load from the rest force (t=0, identical for both) up to the force
-   that just bottoms the Runt fork — past engagement the softer Runt
-   curve needs MORE travel to reach a given force, so it sinks deeper.
+   that just bottoms the STOCK fork — past engagement the stiffer Runt
+   curve reaches a given force at LESS travel, so it rides higher and
+   still has travel in reserve when the stock fork bottoms.
    ------------------------------------------------------------ */
 function travelForForce(fn, F) {
   if (F <= fn(0)) return 0;
@@ -234,7 +235,7 @@ function travelForForce(fn, F) {
   return (lo + hi) / 2;
 }
 const Fmin = forceStock(0);           // rest force, same for both (≈ main pressure)
-const Fmax = forceRunt(1);            // load that just bottoms the Runt fork
+const Fmax = forceStock(1);           // load that just bottoms the stock fork
 function driveState(d) {
   const dd = Math.min(1, Math.max(0, d));
   const F = Fmin + dd * (Fmax - Fmin);
@@ -644,13 +645,13 @@ function drawGraph(ds) {
   gctx.strokeStyle = 'rgba(255,255,255,.18)'; gctx.lineWidth = 1;
   gctx.beginPath(); gctx.moveTo(PAD.l, y); gctx.lineTo(gW - PAD.r, y); gctx.stroke();
 
-  // connector showing the travel difference
-  if (Xr - Xs > 1.5) {
+  // connector showing the travel the Runt holds in reserve (more support)
+  if (Xs - Xr > 1.5) {
     gctx.strokeStyle = getCSS('--runt'); gctx.lineWidth = 2; gctx.setLineDash([2, 3]);
-    gctx.beginPath(); gctx.moveTo(Xs, y); gctx.lineTo(Xr, y); gctx.stroke(); gctx.setLineDash([]);
-    const dmm = Math.round((ds.tRunt - ds.tStock) * PHYS.T);
+    gctx.beginPath(); gctx.moveTo(Xr, y); gctx.lineTo(Xs, y); gctx.stroke(); gctx.setLineDash([]);
+    const dmm = Math.round((ds.tStock - ds.tRunt) * PHYS.T);
     gctx.fillStyle = getCSS('--runt'); gctx.textAlign = 'center'; gctx.textBaseline = 'bottom';
-    gctx.fillText(`+${dmm} mm travel`, (Xs + Xr) / 2, y - 6);
+    gctx.fillText(`${dmm} mm more support`, (Xs + Xr) / 2, y - 6);
   }
 
   // stock dot (hollow gray)
