@@ -1,9 +1,10 @@
 # How the Runt Works — interactive 3D animation
 
 A single self-contained page that explains the **Diaz Suspension Design "Runt"** dual-chamber air
-spring. It shows **two sectioned (cutaway) fork cartridges under the same applied load** — a stock
-single-chamber air spring (left) and one with the Runt installed (right) — so you watch each settle to
-its **own compression depth**, alongside a **force-vs-travel graph** that marks both on the same load.
+spring. It shows **three sectioned (cutaway) forks under the same applied load** — a stock single-chamber
+air spring (left), a **coil-spring fork** (middle), and one with the Runt installed (right) — so you
+watch each settle to its **own compression depth**, alongside a **force-vs-travel graph** that marks all
+three on the same load.
 
 ## Run it
 
@@ -20,10 +21,13 @@ Just open `index.html` in any modern browser.
 
 ## What you're looking at
 
-- **Cutaways (left):** two half-section cartridges that compress in lock-step.
-  - **Without Runt** (left): a plain single-chamber air spring — one blue **main (low-pressure) chamber**,
-    a main piston on the steel shaft, a simple top cap with a single air valve. No floating piston, no
-    second chamber.
+- **Cutaways (left):** three half-section forks, each settling to its own depth for the shared load.
+  - **Stock air spring** (left): a plain single-chamber air spring — one blue **main (low-pressure)
+    chamber**, a main piston on the steel shaft, a simple top cap with a single air valve. No floating
+    piston, no second chamber.
+  - **Coil fork** (middle): a steel **coil spring** on the same piston/shaft (no air chambers), with a
+    preload-adjuster cap. The coil visibly bunches up as it compresses. Its curve is nearly linear but
+    **preloaded** — it carries force even at zero travel — with a firmer bottom-out ramp near the end.
   - **With Runt** (right): styled after the real DSD Runt — matte-black anodized body with white
     "THE RUNT / Diaz Suspension Design" laser-etching, the stepped black cap with the signature
     **twin red air valves** (one per chamber), and gold-anodized pistons with white glide-ring / black
@@ -31,14 +35,15 @@ Just open `index.html` in any modern browser.
     and the blue **main (low-pressure) chamber**. It is called out with the glowing teal "THE RUNT"
     bracket; chamber colors brighten with pressure.
 
-  Both forks see the **same load**, so at low load they sink to the same depth. Past engagement the
-  Runt's second stage adds support, lifting its curve above stock — so it balances that load at **less**
-  travel and rides **higher** than the stock fork, keeping travel in reserve. That growing support gap is
-  the point.
-- **Graph (right):** solid teal = **with Runt**, dashed gray = **stock air spring**, on the *same* main
-  chamber. A horizontal line marks the current load; the hollow gray dot and filled teal dot sit on each
-  curve at that load — so the **horizontal gap between them is the travel the Runt holds in reserve**
-  (annotated `N mm more support`). A teal tick marks where the Runt activates.
+  All three forks see the **same load**. The stock and Runt start identical (and the coil starts a little
+  firmer, from its preload). Past engagement the Runt's second stage adds support, lifting its curve above
+  stock — so it balances that load at **less** travel and rides **higher**, keeping travel in reserve
+  while the stock air spring and coil dive deeper. That growing support gap is the point.
+- **Graph (right):** solid teal = **with Runt**, dashed gray = **stock air spring**, solid violet =
+  **coil fork** (note it starts *above* zero — that's the coil preload). A horizontal line marks the
+  current load; a dot sits on each curve at that load, so their spread is how differently the three forks
+  use their travel. The gap between the stock and Runt dots is annotated `N mm more support`, and a teal
+  tick marks where the Runt activates.
 - **Readouts:** applied load (force), floating-piston state (HELD → ENGAGED), and the resulting **stock
   travel** vs **with-Runt travel**.
 
@@ -62,12 +67,14 @@ rides higher and keeps travel in reserve**, while the stock fork dives deeper an
 
 ## A note on the physics
 
-The curves come from a polytropic air-spring model (`P·Vⁿ = const`). Both the "stock" and "Runt" cases
-share the **same main chamber**, so they are identical until the main pressure reaches the Runt's set
-pressure; past that, the Runt adds a smoothly-ramping second-stage support term (the floating piston
-compressing the secondary chamber), lifting its curve above stock. To show **depth** rather than force,
-the animation drives both forks with the same load and inverts each curve (by bisection) to find the
-travel where that fork balances the load. It is **illustrative**, tuned to read clearly on screen — not a
-calibrated model of any specific fork or pressure setup. All parameters live in the `PHYS` object near the top of
-the inline script in `index.html` if you want to retune them (travel, chamber sizes, main pressure, Runt
-set pressure, second-stage `support`, polytropic exponent).
+The air-spring curves come from a polytropic model (`P·Vⁿ = const`). The "stock" and "Runt" cases share
+the **same main chamber**, so they are identical until the main pressure reaches the Runt's set pressure;
+past that, the Runt adds a smoothly-ramping second-stage support term (the floating piston compressing
+the secondary chamber), lifting its curve above stock. The **coil** curve is a preloaded near-linear rate
+(`preload + rate·travel`) with a gentle bottom-out ramp — real coils aren't a line through the origin,
+the assembly preload gives them force at zero travel. To show **depth** rather than force, the animation
+drives all three forks with the same load and inverts each curve (by bisection) to find the travel where
+that fork balances the load. It is **illustrative**, tuned to read clearly on screen — not a calibrated
+model of any specific fork or pressure setup. All parameters live in the `PHYS`/`COIL` objects near the
+top of the inline script in `index.html` if you want to retune them (travel, chamber sizes, main pressure,
+Runt set pressure, second-stage `support`, coil `preload`/`rate`/`bump`, polytropic exponent).
